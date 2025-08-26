@@ -1,3 +1,4 @@
+// src/app/admin/scans/[id]/page.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -11,26 +12,48 @@ const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 
 type Hit = {
   symbol: string;
-  lastPrice: number;
-  lastVolume: number;
+  lastPrice: number; // 최근 봉 종가
+  lastVolume: number; // 최근 봉 거래량(분)
   avgVolumeN: number;
   volumeMultiple: number;
   changePct: number;
-  at: string;
+  at: string; // ISO (스캔 시각)
   name?: string;
 };
+
+type Candle = {
+  t: string | number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
+// ▽ 보조 컬럼용 요약 타입
+type Summary = {
+  name?: string | null;
+  price?: number | null;
+  listedShares?: number | null;
+  marketCap?: number | null; // 원 단위
+};
+
+type ScanParams = { n?: number; k?: number; r?: number };
 
 export default function ScanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [token, setToken] = useState<string | null>(null);
   const [hits, setHits] = useState<Hit[]>([]);
-  type ScanParams = { n?: number; k?: number; r?: number };
-  const [meta, setMeta] =
-    useState<{ at?: string; params?: ScanParams } | null>(null);
+  const [meta, setMeta] = useState<{ at?: string; params?: ScanParams } | null>(
+    null
+  );
   const [selected, setSelected] = useState<string | null>(null);
-  type Candle = { t: string | number; o: number; h: number; l: number; c: number; v: number };
+
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // ▽ 종목 요약 캐시 (종목명/시총)
+  const [summaries, setSummaries] = useState<Record<string, Summary>>({});
 
   // 로그인 토큰
   useEffect(() => {
@@ -41,7 +64,7 @@ export default function ScanDetailPage() {
     return () => unsub();
   }, []);
 
-  // 상세 로드
+  // 상세 로드 + 요약 병렬 로드
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -56,6 +79,31 @@ export default function ScanDetailPage() {
       setHits(j.hits || []);
       setMeta({ at: j.at, params: j.params });
       if ((j.hits || []).length) setSelected(j.hits[0].symbol);
+
+      // ▽ 종목 요약(이름/시총) 병렬 로드
+      const uniq = Array.from(
+        new Set((j.hits || []).map((h: Hit) => h.symbol))
+      );
+      const fetched: Record<string, Summary> = {};
+      await Promise.all(
+        uniq.map(async (s) => {
+          try {
+            const r = await fetch(`/api/kis/summary/${s}`);
+            const sj = await r.json();
+            if (sj?.ok) {
+              fetched[s] = {
+                name: sj.name ?? null,
+                price: sj.price ?? null,
+                listedShares: sj.listedShares ?? null,
+                marketCap: sj.marketCap ?? null,
+              };
+            }
+          } catch {
+            // 무시
+          }
+        })
+      );
+      setSummaries(fetched);
     })();
   }, [token, id]);
 
@@ -67,7 +115,6 @@ export default function ScanDetailPage() {
       try {
         const res = await fetch(`/api/kis/intraday/${selected}`);
         const j = await res.json();
-        // j.data 의 포맷에 맞춰 정규화 (fetchIntradayCandles와 동일 구조 가정)
         const rows: unknown[] =
           j?.data?.output ||
           j?.data?.output1 ||
@@ -95,10 +142,24 @@ export default function ScanDetailPage() {
     })();
   }, [selected]);
 
+  // ▽ 급증 시점 라벨(HHMMSS) 구하기: 스캔 히트의 at(ISO) → "HH:MM:SS" → "HHMMSS"
+  const spikeLabel = useMemo(() => {
+    const hit = hits.find((h) => h.symbol === selected);
+    if (!hit?.at) return null;
+    const hhmmss = hit.at.slice(11, 19); // "HH:MM:SS"
+    return hhmmss.replaceAll(':', ''); // "HHMMSS"
+  }, [hits, selected]);
+
+  // 차트 옵션 (급증 마커 추가)
   const chartOption = useMemo(() => {
-    const x = candles.map((r) => r.t);
+    const x = candles.map((r) => String(r.t));
     const close = candles.map((r) => r.c);
     const vol = candles.map((r) => r.v);
+
+    const spikeIndex = spikeLabel ? x.findIndex((xx) => xx === spikeLabel) : -1;
+    const spikeX = spikeIndex >= 0 ? x[spikeIndex] : null;
+    const spikeY = spikeIndex >= 0 ? close[spikeIndex] : null;
+
     return {
       tooltip: { trigger: 'axis' },
       grid: [
@@ -121,6 +182,24 @@ export default function ScanDetailPage() {
           smooth: true,
           xAxisIndex: 0,
           yAxisIndex: 0,
+          // ▽ 급증 마커(가격 라인 위)
+          markPoint:
+            spikeX && spikeY
+              ? {
+                  data: [
+                    { name: 'Spike', coord: [spikeX, spikeY], value: '급증' },
+                  ],
+                  label: { show: true, formatter: '급증' },
+                  symbolSize: 50,
+                }
+              : undefined,
+          // ▽ 급증 수직선
+          markLine: spikeX
+            ? {
+                data: [{ xAxis: spikeX }],
+                label: { show: true, formatter: '급증 시점' },
+              }
+            : undefined,
         },
         {
           name: 'Volume',
@@ -128,6 +207,7 @@ export default function ScanDetailPage() {
           data: vol,
           xAxisIndex: 1,
           yAxisIndex: 1,
+          // 필요시 거래량 영역에도 마커 가능 (여긴 생략)
         },
       ],
       dataZoom: [
@@ -135,7 +215,15 @@ export default function ScanDetailPage() {
         { type: 'slider', xAxisIndex: [0, 1] },
       ],
     };
-  }, [candles]);
+  }, [candles, spikeLabel]);
+
+  // 표시 포맷터
+  const fmtKR = (n?: number | null, digits = 0) =>
+    typeof n === 'number'
+      ? n.toLocaleString(undefined, { maximumFractionDigits: digits })
+      : '-';
+
+  const getSummary = (sym: string): Summary => summaries[sym] || {};
 
   return (
     <>
@@ -158,29 +246,39 @@ export default function ScanDetailPage() {
               <thead>
                 <tr>
                   <th>종목</th>
+                  <th>종목명</th> {/* 추가 */}
                   <th>현재가</th>
                   <th>급증배수</th>
                   <th>등락%</th>
+                  <th>거래대금(분)</th> {/* 추가: lastPrice * lastVolume */}
+                  <th>시가총액</th> {/* 추가 */}
                   <th>시각</th>
                 </tr>
               </thead>
               <tbody>
-                {hits.map((h) => (
-                  <tr
-                    key={h.symbol}
-                    className={selected === h.symbol ? styles.active : ''}
-                    onClick={() => setSelected(h.symbol)}
-                  >
-                    <td>{h.symbol}</td>
-                    <td>{h.lastPrice?.toLocaleString?.()}</td>
-                    <td>{h.volumeMultiple}</td>
-                    <td>{h.changePct}</td>
-                    <td>{h.at?.slice(11, 19)}</td>
-                  </tr>
-                ))}
+                {hits.map((h) => {
+                  const sum = getSummary(h.symbol);
+                  const turnover = (h.lastPrice || 0) * (h.lastVolume || 0); // 원 단위(분)
+                  return (
+                    <tr
+                      key={h.symbol}
+                      className={selected === h.symbol ? styles.active : ''}
+                      onClick={() => setSelected(h.symbol)}
+                    >
+                      <td>{h.symbol}</td>
+                      <td>{sum?.name ?? '-'}</td>
+                      <td>{fmtKR(h.lastPrice)}</td>
+                      <td>{h.volumeMultiple}</td>
+                      <td>{h.changePct}</td>
+                      <td>{fmtKR(turnover)}</td>
+                      <td>{sum?.marketCap ? fmtKR(sum.marketCap) : '-'}</td>
+                      <td>{h.at?.slice(11, 19)}</td>
+                    </tr>
+                  );
+                })}
                 {!hits.length && (
                   <tr>
-                    <td colSpan={5} className={styles.empty}>
+                    <td colSpan={8} className={styles.empty}>
                       히트가 없습니다.
                     </td>
                   </tr>

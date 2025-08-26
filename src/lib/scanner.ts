@@ -1,9 +1,10 @@
 import { fetchIntradayCandles } from './kisQuote';
+import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 
 export type ScanParams = {
-  volumeLookback?: number; // 직전 N개 봉 평균 거래량
-  volumeK?: number; // k배 (급증 배수)
-  minChangePct?: number; // 당일 등락률 하한 (예: 2%)
+  volumeLookback?: number;
+  volumeK?: number;
+  minChangePct?: number;
 };
 
 export type ScanHit = {
@@ -14,8 +15,44 @@ export type ScanHit = {
   avgVolumeN: number;
   volumeMultiple: number;
   changePct: number;
-  at: string; // ISO 저장 시각
+  at: string;
 };
+
+// Firestore에서 우리가 적재한 의사 분봉 로드
+async function loadPseudoCandles(symbol: string) {
+  const { db } = initFirebaseAdmin();
+  // 오늘 날짜
+  const fmt = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const p = Object.fromEntries(
+    fmt.formatToParts(new Date()).map((x) => [x.type, x.value])
+  );
+  const ymd = `${p.year}${p.month}${p.day}`;
+
+  const snap = await db
+    .collection('mins')
+    .doc(symbol)
+    .collection(ymd)
+    .orderBy('__name__')
+    .get();
+  // Candle과 유사 포맷(t/price/vol)으로 변환
+  const rows = snap.docs.map((d) => {
+    const r = d.data() as any;
+    return {
+      t: d.id.slice(-4) + '00', // HHMM + "00" → HHMMSS
+      o: r.price, // open은 모름 → price 대입
+      h: r.price,
+      l: r.price,
+      c: r.price,
+      v: r.vol || 0,
+    };
+  });
+  return rows;
+}
 
 function pct(from: number, to: number) {
   if (!from || !to) return 0;
@@ -28,10 +65,15 @@ export async function scanOneSymbol(
 ): Promise<ScanHit | null> {
   const { volumeLookback = 20, volumeK = 3, minChangePct = 2 } = params;
 
-  const candles = await fetchIntradayCandles(symbol);
-  if (!candles?.length) return null;
+  // 1) 먼저 KIS 분봉 시도
+  let candles = await fetchIntradayCandles(symbol);
 
-  // 최근 봉 / 직전 N봉 평균
+  // 2) 안 되면 Firestore 의사 분봉으로 대체
+  if (!candles.length) {
+    candles = await loadPseudoCandles(symbol);
+  }
+  if (!candles.length) return null;
+
   const last = candles[candles.length - 1];
   const prev = candles.slice(
     Math.max(0, candles.length - 1 - volumeLookback),
@@ -41,10 +83,8 @@ export async function scanOneSymbol(
     ? prev.reduce((s, r) => s + (r.v || 0), 0) / prev.length
     : 0;
 
-  // 당일 시가(첫 봉 시가) vs 현재가 등락률
   const firstOpen = candles[0]?.o || last.o || 0;
   const change = pct(firstOpen, last.c);
-
   const volMultiple = avgVol ? last.v / avgVol : 0;
 
   const passVolume = last.v >= avgVol * volumeK && last.v > 0;
@@ -64,7 +104,6 @@ export async function scanOneSymbol(
   return null;
 }
 
-/** 여러 종목 스캔 */
 export async function runScan(symbols: string[], params: ScanParams) {
   const hits: ScanHit[] = [];
   for (const s of symbols) {
@@ -72,11 +111,9 @@ export async function runScan(symbols: string[], params: ScanParams) {
       const hit = await scanOneSymbol(s, params);
       if (hit) hits.push(hit);
     } catch (e) {
-      // 개별 종목 실패는 무시하고 진행
       console.error('[scan error]', s, e);
     }
   }
-  // 직관적 정렬: 등락률 ↓, 거래량 급증 배수 ↓
   hits.sort(
     (a, b) => b.changePct - a.changePct || b.volumeMultiple - a.volumeMultiple
   );

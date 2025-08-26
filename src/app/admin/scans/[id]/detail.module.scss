@@ -15,9 +15,9 @@
 }
 .body {
   display: grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: 520px 1fr;
   gap: 16px;
-}
+} /* 표 폭 살짝 확대 */
 
 .table {
   width: 100%;
