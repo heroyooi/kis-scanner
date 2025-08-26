@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { onIdTokenChanged, getIdToken } from 'firebase/auth';
 import dynamic from 'next/dynamic';
 import { authClient } from '@/lib/firebase.client';
@@ -19,7 +20,8 @@ type Hit = {
   name?: string;
 };
 
-export default function ScanDetailPage({ params }: { params: { id: string } }) {
+export default function ScanDetailPage() {
+  const { id } = useParams<{ id: string }>();
   const [token, setToken] = useState<string | null>(null);
   const [hits, setHits] = useState<Hit[]>([]);
   type ScanParams = { n?: number; k?: number; r?: number };
@@ -43,7 +45,7 @@ export default function ScanDetailPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (!token) return;
     (async () => {
-      const res = await fetch(`/api/admin/scans/${params.id}`, {
+      const res = await fetch(`/api/admin/scans/${id}`, {
         headers: { authorization: `Bearer ${token}` },
       });
       const j = await res.json();
@@ -55,7 +57,7 @@ export default function ScanDetailPage({ params }: { params: { id: string } }) {
       setMeta({ at: j.at, params: j.params });
       if ((j.hits || []).length) setSelected(j.hits[0].symbol);
     })();
-  }, [token, params.id]);
+  }, [token, id]);
 
   // 차트 데이터 로드 (KIS 분봉 프록시 사용)
   useEffect(() => {
@@ -141,7 +143,7 @@ export default function ScanDetailPage({ params }: { params: { id: string } }) {
         <div className={styles.head}>
           <h1>스캔 상세</h1>
           <div className={styles.meta}>
-            <span>ID: {params.id}</span>
+            <span>ID: {id}</span>
             <span>시간: {meta?.at ?? '-'}</span>
             <span>
               조건: n={meta?.params?.n ?? '-'}, k={meta?.params?.k ?? '-'}, r=
