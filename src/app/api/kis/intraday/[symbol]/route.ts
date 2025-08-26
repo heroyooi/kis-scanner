@@ -17,7 +17,6 @@ export async function GET(
   const { searchParams } = new URL(req.url);
   const mrkt = searchParams.get('mrkt') || 'J';
   const trId = searchParams.get('tr_id') || 'FHKST03010200'; // 문서 확인 필요
-  const time = searchParams.get('time') || '1';
 
   try {
     const token = await getKisAccessToken();
@@ -40,7 +39,11 @@ export async function GET(
     });
 
     return NextResponse.json({ ok: true, data });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message }, { status: 500 });
+  } catch (e: unknown) {
+    const err = e as Error;
+    return NextResponse.json(
+      { ok: false, error: err.message },
+      { status: 500 }
+    );
   }
 }

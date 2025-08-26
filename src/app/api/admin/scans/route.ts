@@ -5,6 +5,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
 
+interface ScanDoc {
+  at?: string;
+  params?: { n?: number; k?: number; r?: number };
+  hits?: unknown[];
+}
+
 export async function GET(req: NextRequest) {
   try {
     // ✅ 1) 먼저 Admin 초기화 (기본 앱 생성)
@@ -34,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     const snap = await ref.get();
     const items = snap.docs.map((d) => {
-      const data = d.data() as any;
+      const data = d.data() as ScanDoc | undefined;
       return {
         id: d.id,
         at: data?.at ?? null,
@@ -47,14 +53,14 @@ export async function GET(req: NextRequest) {
       ? snap.docs[snap.docs.length - 1].id
       : null;
     return NextResponse.json({ ok: true, items, nextAfter, limit });
-  } catch (e: any) {
-    // 임시로 에러 정보를 내려서 원인 확인 (문제 해결 후 제거해도 됨)
+  } catch (e: unknown) {
+    const err = e as Error & { name?: string; code?: string };
     return NextResponse.json(
       {
         ok: false,
-        error: e?.message || 'INTERNAL',
-        name: e?.name,
-        code: e?.code,
+        error: err.message || 'INTERNAL',
+        name: err.name,
+        code: err.code,
       },
       { status: 500 }
     );

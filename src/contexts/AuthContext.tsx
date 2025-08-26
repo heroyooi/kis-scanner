@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -44,28 +45,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
-  const loginWithEmail = async (email: string, pw: string) => {
-    await signInWithEmailAndPassword(authClient, email.trim(), pw);
-  };
+  const loginWithEmail = useCallback(
+    async (email: string, pw: string) => {
+      await signInWithEmailAndPassword(authClient, email.trim(), pw);
+    },
+    []
+  );
 
-  const signupWithEmail = async (email: string, pw: string) => {
-    await createUserWithEmailAndPassword(authClient, email.trim(), pw);
-  };
+  const signupWithEmail = useCallback(
+    async (email: string, pw: string) => {
+      await createUserWithEmailAndPassword(authClient, email.trim(), pw);
+    },
+    []
+  );
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = useCallback(async () => {
     const provider = new GoogleAuthProvider();
     await signInWithPopup(authClient, provider);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await signOut(authClient);
-  };
+  }, []);
 
-  const getToken = async (forceRefresh = false) => {
-    if (!user) return null;
-    const t = await getIdToken(user, forceRefresh);
-    return t ?? null;
-  };
+  const getToken = useCallback(
+    async (forceRefresh = false) => {
+      if (!user) return null;
+      const t = await getIdToken(user, forceRefresh);
+      return t ?? null;
+    },
+    [user]
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -77,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       getToken,
     }),
-    [user, loading]
+    [user, loading, loginWithEmail, signupWithEmail, loginWithGoogle, logout, getToken]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

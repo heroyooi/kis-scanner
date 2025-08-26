@@ -1,4 +1,4 @@
-import { fetchIntradayCandles, fetchQuote } from './kisQuote';
+import { fetchIntradayCandles } from './kisQuote';
 
 export type ScanParams = {
   volumeLookback?: number; // 직전 N개 봉 평균 거래량
@@ -28,7 +28,7 @@ export async function scanOneSymbol(
 ): Promise<ScanHit | null> {
   const { volumeLookback = 20, volumeK = 3, minChangePct = 2 } = params;
 
-  const candles = await fetchIntradayCandles(symbol, 1);
+  const candles = await fetchIntradayCandles(symbol);
   if (!candles?.length) return null;
 
   // 최근 봉 / 직전 N봉 평균

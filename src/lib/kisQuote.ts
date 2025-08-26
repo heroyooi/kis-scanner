@@ -37,7 +37,6 @@ type Candle = {
  */
 export async function fetchIntradayCandles(
   symbol: string,
-  interval = 1,
   mrkt = 'J',
   trId = 'FHKST03010200'
 ): Promise<Candle[]> {
@@ -61,10 +60,13 @@ export async function fetchIntradayCandles(
   });
 
   const list: KISIntradayRow[] =
-    (data as any)?.output ??
-    (data as any)?.output1 ??
-    (data as any)?.chart ??
-    [];
+    'output' in data && Array.isArray(data.output)
+      ? data.output
+      : 'output1' in data && Array.isArray(data.output1)
+      ? data.output1
+      : 'chart' in data && Array.isArray(data.chart)
+      ? data.chart
+      : [];
 
   // any 회피를 위해 위에서 배열 원소 타입을 KISIntradayRow로 고정했고,
   // 아래에서 안전하게 정규화합니다.
@@ -115,7 +117,8 @@ export async function fetchQuote(
     },
   });
 
-  const out: KISQuoteOutput = (data as any)?.output ?? (data as any);
+  const out: KISQuoteOutput =
+    'output' in data && data.output ? data.output : data;
 
   return {
     symbol,

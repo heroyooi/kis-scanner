@@ -22,9 +22,12 @@ type Hit = {
 export default function ScanDetailPage({ params }: { params: { id: string } }) {
   const [token, setToken] = useState<string | null>(null);
   const [hits, setHits] = useState<Hit[]>([]);
-  const [meta, setMeta] = useState<{ at?: string; params?: any } | null>(null);
+  type ScanParams = { n?: number; k?: number; r?: number };
+  const [meta, setMeta] =
+    useState<{ at?: string; params?: ScanParams } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [candles, setCandles] = useState<any[]>([]);
+  type Candle = { t: string | number; o: number; h: number; l: number; c: number; v: number };
+  const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 로그인 토큰
@@ -63,20 +66,23 @@ export default function ScanDetailPage({ params }: { params: { id: string } }) {
         const res = await fetch(`/api/kis/intraday/${selected}`);
         const j = await res.json();
         // j.data 의 포맷에 맞춰 정규화 (fetchIntradayCandles와 동일 구조 가정)
-        const rows =
+        const rows: unknown[] =
           j?.data?.output ||
           j?.data?.output1 ||
           j?.data?.chart ||
           j?.data ||
           [];
-        const mapped = rows.map((r: any) => ({
-          t: r.stck_cntg_hour || r.t, // HHMMSS or timestamp
-          o: Number(r.stck_oprc ?? r.o),
-          h: Number(r.stck_hgpr ?? r.h),
-          l: Number(r.stck_lwpr ?? r.l),
-          c: Number(r.stck_prpr ?? r.c),
-          v: Number(r.acml_tr_pbmn ?? r.v),
-        }));
+        const mapped: Candle[] = rows.map((r) => {
+          const row = r as { [k: string]: string | number | undefined };
+          return {
+            t: row.stck_cntg_hour ?? row.t ?? '', // HHMMSS or timestamp
+            o: Number(row.stck_oprc ?? row.o ?? 0),
+            h: Number(row.stck_hgpr ?? row.h ?? 0),
+            l: Number(row.stck_lwpr ?? row.l ?? 0),
+            c: Number(row.stck_prpr ?? row.c ?? 0),
+            v: Number(row.acml_tr_pbmn ?? row.v ?? 0),
+          };
+        });
         setCandles(mapped);
       } catch (e) {
         console.error(e);

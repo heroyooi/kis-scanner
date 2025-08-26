@@ -10,15 +10,16 @@ export async function GET() {
     await ref.set({ ok: true, at: now }, { merge: true });
     const snap = await ref.get();
     return NextResponse.json({ ok: true, readBack: snap.data() });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const err = e as Error & { name?: string; code?: string; details?: unknown };
     return NextResponse.json(
       {
         ok: false,
-        name: e?.name,
-        code: e?.code,
-        message: e?.message,
-        details: e?.details,
-        stack: e?.stack,
+        name: err.name,
+        code: err.code,
+        message: err.message,
+        details: err.details,
+        stack: err.stack,
       },
       { status: 500 }
     );

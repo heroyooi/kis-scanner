@@ -4,6 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
 
+interface ScanDoc {
+  at?: string;
+  params?: { n?: number; k?: number; r?: number };
+  hits?: unknown[];
+}
+
 export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
   try {
     const { db } = initFirebaseAdmin();
@@ -24,7 +30,7 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
         { status: 404 }
       );
 
-    const data = snap.data() as any;
+    const data = snap.data() as ScanDoc | undefined;
     // 안전한 최소 응답
     return NextResponse.json({
       ok: true,
@@ -33,9 +39,10 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
       params: data?.params ?? null,
       hits: Array.isArray(data?.hits) ? data.hits : [],
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const err = e as Error;
     return NextResponse.json(
-      { ok: false, error: e?.message || 'INTERNAL' },
+      { ok: false, error: err.message || 'INTERNAL' },
       { status: 500 }
     );
   }

@@ -40,7 +40,11 @@ export async function GET(
     });
 
     return NextResponse.json({ ok: true, data });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message }, { status: 500 });
+  } catch (e: unknown) {
+    const err = e as Error;
+    return NextResponse.json(
+      { ok: false, error: err.message },
+      { status: 500 }
+    );
   }
 }

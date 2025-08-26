@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { onIdTokenChanged, getIdToken } from 'firebase/auth';
 import { authClient } from '@/lib/firebase.client';
 import styles from './scans.module.scss';
@@ -31,35 +31,38 @@ export default function AdminScansPage() {
     return () => unsub();
   }, []);
 
-  async function loadPage(after?: string | null, append = false) {
-    if (!token) return;
-    setLoading(true);
-    try {
-      const url = new URL('/api/admin/scans', window.location.origin);
-      url.searchParams.set('limit', '20');
-      if (after) url.searchParams.set('after', after);
+  const loadPage = useCallback(
+    async (after?: string | null, append = false) => {
+      if (!token) return;
+      setLoading(true);
+      try {
+        const url = new URL('/api/admin/scans', window.location.origin);
+        url.searchParams.set('limit', '20');
+        if (after) url.searchParams.set('after', after);
 
-      const res = await fetch(url.toString(), {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
+        const res = await fetch(url.toString(), {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
 
-      if (!json.ok) throw new Error(json.error || 'fail');
+        if (!json.ok) throw new Error(json.error || 'fail');
 
-      setNextAfter(json.nextAfter || null);
-      setRows((prev) => (append ? [...prev, ...json.items] : json.items));
-    } catch (e) {
-      console.error(e);
-      alert('불러오기에 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  }
+        setNextAfter(json.nextAfter || null);
+        setRows((prev) => (append ? [...prev, ...json.items] : json.items));
+      } catch (e) {
+        console.error(e);
+        alert('불러오기에 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token]
+  );
 
   // 2) 최초 로드
   useEffect(() => {
     if (token) loadPage();
-  }, [token]);
+  }, [token, loadPage]);
 
   if (!token) {
     return (
