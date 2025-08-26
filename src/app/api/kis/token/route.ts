@@ -1,8 +1,8 @@
-// src/app/api/kis/token/route.ts
-export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { KIS_BASE_URL, ENV } from '@/lib/env';
+
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -26,13 +26,15 @@ export async function GET() {
       ok: true,
       preview: String(data?.access_token).slice(0, 12) + '...',
     });
-  } catch (e: any) {
+  } catch (err) {
+    const e = err as AxiosError;
+
     return NextResponse.json(
       {
         ok: false,
-        status: e?.response?.status,
-        data: e?.response?.data,
-        message: e?.message,
+        status: e.response?.status,
+        data: e.response?.data,
+        message: e.message,
       },
       { status: 500 }
     );

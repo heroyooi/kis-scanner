@@ -38,8 +38,8 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(authClient, email.trim(), pw);
       // onIdTokenChanged에서 라우팅 처리됨
-    } catch (e: any) {
-      setErr(e?.message || '로그인 실패');
+    } catch (error: unknown) {
+      setErr(error instanceof Error ? error.message : '로그인 실패');
     } finally {
       setBusy(false);
     }
@@ -52,8 +52,8 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(authClient, provider);
       // onIdTokenChanged에서 라우팅 처리됨
-    } catch (e: any) {
-      setErr(e?.message || 'Google 로그인 실패');
+    } catch (error: unknown) {
+      setErr(error instanceof Error ? error.message : 'Google 로그인 실패');
     } finally {
       setBusy(false);
     }

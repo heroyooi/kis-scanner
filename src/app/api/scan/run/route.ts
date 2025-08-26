@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const sp = new URL(req.url).searchParams;
 
     // 1) 대상 종목: 쿼리 또는 Firestore에서 로드
-    let symbolsParam = sp.get('symbols');
+    const symbolsParam = sp.get('symbols'); // ✅ const로 변경
     let symbols: string[] = [];
     if (symbolsParam) {
       symbols = symbolsParam
@@ -72,9 +72,17 @@ export async function GET(req: NextRequest) {
       );
 
     return NextResponse.json({ ok: true, count: hits.length, id, hits });
-  } catch (e: any) {
+  } catch (err: unknown) {
+    // ✅ any 대신 unknown 사용
+    if (err instanceof Error) {
+      return NextResponse.json(
+        { ok: false, error: err.message, stack: err.stack },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { ok: false, error: e?.message, stack: e?.stack },
+      { ok: false, error: 'Unknown error' },
       { status: 500 }
     );
   }
