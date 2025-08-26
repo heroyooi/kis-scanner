@@ -11,9 +11,9 @@ import { KIS_BASE_URL, ENV } from '@/lib/env';
  */
 export async function GET(
   req: NextRequest,
-  ctx: { params: { symbol: string } }
+  ctx: { params: Promise<{ symbol: string }> }
 ) {
-  const symbol = ctx.params.symbol;
+  const { symbol } = await ctx.params;
   const { searchParams } = new URL(req.url);
   const mrkt = searchParams.get('mrkt') || 'J';
   const trId = searchParams.get('tr_id') || 'FHKST03010200'; // 문서 확인 필요

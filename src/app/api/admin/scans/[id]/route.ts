@@ -10,7 +10,10 @@ interface ScanDoc {
   hits?: unknown[];
 }
 
-export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
   try {
     const { db } = initFirebaseAdmin();
 
@@ -23,7 +26,8 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
       );
     await getAuth().verifyIdToken(token);
 
-    const snap = await db.collection('scans').doc(ctx.params.id).get();
+    const { id } = await ctx.params;
+    const snap = await db.collection('scans').doc(id).get();
     if (!snap.exists)
       return NextResponse.json(
         { ok: false, error: 'NOT_FOUND' },
