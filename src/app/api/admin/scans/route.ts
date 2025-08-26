@@ -1,3 +1,4 @@
+// src/app/api/admin/scans/route.ts
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -6,7 +7,10 @@ import { getAuth } from 'firebase-admin/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    // 1) 클라이언트 ID 토큰 검증
+    // ✅ 1) 먼저 Admin 초기화 (기본 앱 생성)
+    const { db } = initFirebaseAdmin();
+
+    // ✅ 2) 그 다음 ID 토큰 검증
     const authz = req.headers.get('authorization') || '';
     const token = authz.startsWith('Bearer ') ? authz.slice(7) : '';
     if (!token) {
@@ -17,27 +21,24 @@ export async function GET(req: NextRequest) {
     }
     await getAuth().verifyIdToken(token);
 
-    // 2) 파라미터 (페이지네이션)
+    // ✅ 3) Firestore 조회
     const { searchParams } = new URL(req.url);
     const limit = Math.min(Number(searchParams.get('limit') || 20), 100);
-    const after = searchParams.get('after'); // 문서ID 커서
+    const after = searchParams.get('after');
 
-    const { db } = initFirebaseAdmin();
     let ref = db.collection('scans').orderBy('__name__', 'desc').limit(limit);
-
     if (after) {
       const afterSnap = await db.collection('scans').doc(after).get();
       if (afterSnap.exists) ref = ref.startAfter(afterSnap);
     }
 
     const snap = await ref.get();
-
     const items = snap.docs.map((d) => {
       const data = d.data() as any;
       return {
         id: d.id,
-        at: data?.at || null,
-        params: data?.params || null,
+        at: data?.at ?? null,
+        params: data?.params ?? null,
         hitsCount: Array.isArray(data?.hits) ? data.hits.length : 0,
       };
     });
@@ -45,12 +46,17 @@ export async function GET(req: NextRequest) {
     const nextAfter = snap.docs.length
       ? snap.docs[snap.docs.length - 1].id
       : null;
-
     return NextResponse.json({ ok: true, items, nextAfter, limit });
   } catch (e: any) {
+    // 임시로 에러 정보를 내려서 원인 확인 (문제 해결 후 제거해도 됨)
     return NextResponse.json(
-      { ok: false, error: e?.message || 'INTERNAL' },
-      { status: e?.status || 500 }
+      {
+        ok: false,
+        error: e?.message || 'INTERNAL',
+        name: e?.name,
+        code: e?.code,
+      },
+      { status: 500 }
     );
   }
 }

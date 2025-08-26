@@ -1,0 +1,55 @@
+.wrap {
+  padding: 24px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.meta {
+  display: flex;
+  gap: 12px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.body {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 16px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  text-align: left;
+}
+.active {
+  background: #f5f9ff;
+}
+.empty {
+  text-align: center;
+  color: #6b7280;
+}
+
+.chartHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.chartArea {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+}
+.left {
+  overflow: auto;
+  max-height: calc(100vh - 180px);
+}

@@ -7,7 +7,5 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
 };
 
-// ✅ 중복 초기화 방지
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-
 export const authClient = getAuth(app);
