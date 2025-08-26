@@ -1,0 +1,45 @@
+.wrap {
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.actions button {
+  margin-left: 8px;
+  padding: 6px 10px;
+}
+
+.tableWrap {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px;
+  text-align: left;
+}
+
+.id {
+  font-weight: 600;
+}
+
+.at {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.empty {
+  text-align: center;
+  color: #6b7280;
+}/*# sourceMappingURL=scans.module.css.map */

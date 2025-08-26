@@ -1,0 +1,90 @@
+.wrap {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: #f7f8fa;
+}
+
+.card {
+  width: 360px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+}
+.card h1 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+.form label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.form input {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  outline: none;
+}
+.form input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.primary,
+.google {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.primary:disabled,
+.google:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.google {
+  background: #111827;
+  color: #fff;
+  margin-top: 8px;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 12px;
+  margin: 12px 0 8px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0 8px;
+}/*# sourceMappingURL=login.module.css.map */
