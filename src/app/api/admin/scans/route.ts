@@ -1,4 +1,3 @@
-// src/app/api/admin/scans/route.ts
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -6,17 +5,15 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
 
 interface ScanDoc {
-  at?: string;
-  params?: { n?: number; k?: number; r?: number };
-  hits?: unknown[];
+  at?: FirebaseFirestore.Timestamp | string | null;
+  params?: { n?: number; k?: number; r?: number; symbolsCount?: number } | null;
+  hitsCount?: number;
 }
 
 export async function GET(req: NextRequest) {
   try {
-    // ✅ 1) 먼저 Admin 초기화 (기본 앱 생성)
     const { db } = initFirebaseAdmin();
 
-    // ✅ 2) 그 다음 ID 토큰 검증
     const authz = req.headers.get('authorization') || '';
     const token = authz.startsWith('Bearer ') ? authz.slice(7) : '';
     if (!token) {
@@ -27,11 +24,11 @@ export async function GET(req: NextRequest) {
     }
     await getAuth().verifyIdToken(token);
 
-    // ✅ 3) Firestore 조회
     const { searchParams } = new URL(req.url);
     const limit = Math.min(Number(searchParams.get('limit') || 20), 100);
     const after = searchParams.get('after');
 
+    // ✅ scans 컬렉션에서 문서ID(runId: yyyymmddhhmm) 역순 페이징
     let ref = db.collection('scans').orderBy('__name__', 'desc').limit(limit);
     if (after) {
       const afterSnap = await db.collection('scans').doc(after).get();
@@ -40,12 +37,20 @@ export async function GET(req: NextRequest) {
 
     const snap = await ref.get();
     const items = snap.docs.map((d) => {
-      const data = d.data() as ScanDoc | undefined;
+      const data = d.data() as ScanDoc;
+      // at은 Timestamp이거나 문자열일 수 있음 → ISO 문자열로 통일
+      let at: string | null = null;
+      if (data?.at && typeof (data.at as any).toDate === 'function') {
+        at = (data.at as FirebaseFirestore.Timestamp).toDate().toISOString();
+      } else if (typeof data?.at === 'string') {
+        at = data.at;
+      }
+
       return {
         id: d.id,
-        at: data?.at ?? null,
+        at,
         params: data?.params ?? null,
-        hitsCount: Array.isArray(data?.hits) ? data.hits.length : 0,
+        hitsCount: typeof data?.hitsCount === 'number' ? data.hitsCount : 0,
       };
     });
 
@@ -53,14 +58,13 @@ export async function GET(req: NextRequest) {
       ? snap.docs[snap.docs.length - 1].id
       : null;
     return NextResponse.json({ ok: true, items, nextAfter, limit });
-  } catch (e: unknown) {
-    const err = e as Error & { name?: string; code?: string };
+  } catch (e: any) {
     return NextResponse.json(
       {
         ok: false,
-        error: err.message || 'INTERNAL',
-        name: err.name,
-        code: err.code,
+        error: e?.message || 'INTERNAL',
+        name: e?.name,
+        code: e?.code,
       },
       { status: 500 }
     );
